@@ -177,7 +177,7 @@ namespace Unity.Collections
             RemoveNullTermination(ref replacement);
 
             int pos;
-            if (checkForOldString==true)
+            if (checkForOldString == true)
             {
                 pos = ContainsAt(A, positon, oldString);
             }
@@ -197,13 +197,41 @@ namespace Unity.Collections
 
                     tempPos++;
                 }
-
+                
                 OverWrite(ref A, pos, replacement);
                 OverWrite(ref A, pos + replacement.Length, temp);
                 EnforceNullTermination(ref A);
             }
 
             return pos != -1;
+        }
+
+        public static bool Insert(ref NativeString A, int position, NativeString insertion)
+        {
+            EnforceNullTermination(ref A);
+            RemoveNullTermination(ref insertion);
+            bool success = true;
+
+            if (position>=0 && position<A.Length)
+            {
+                
+                NativeString temp = new NativeString(A.Length - position, Allocator.Temp);
+                temp.ResizeUninitialized(A.Length - position);
+                for (int i = 0; i < temp.Length; i++)
+                {
+                    temp[i] = A[position+i];
+                }
+
+                OverWrite(ref A, position, insertion);
+                OverWrite(ref A, position + insertion.Length, temp);
+                EnforceNullTermination(ref A);
+            }
+            else
+            {
+                success = false;
+            }
+
+            return success;
         }
 
         public static void OverWrite(ref NativeString A, int position, NativeString stamp)
