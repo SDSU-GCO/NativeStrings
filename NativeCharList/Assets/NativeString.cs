@@ -33,8 +33,8 @@ namespace Unity.Collections
         /// <returns></returns>
         public static NativeString operator +(NativeString A, NativeString B)
         {
-            RemoveNullTermination(ref A);
-            EnforceNullTermination(ref B);
+            A.RemoveNullTermination();
+            B.EnforceNullTermination();
 
             int pos = A.Length;
             A.ResizeUninitialized(A.Length + B.Length);
@@ -45,6 +45,51 @@ namespace Unity.Collections
             }
 
             return A;
+        }
+
+        /// <summary>
+        /// This function takes a copy of native list A and appends/concatanates B to the end of it.
+        /// </summary>
+        /// <param name="A"></param>
+        /// <param name="B"></param>
+        /// <returns></returns>
+        public static NativeString operator +(NativeString A, string B)
+        {
+            RemoveNullTermination(ref A);
+
+            int pos = A.Length;
+            A.ResizeUninitialized(A.Length + B.Length);
+
+            for (int i = 0; i < B.Length; i++)
+            {
+                A[pos + i] = B[i];
+            }
+
+            A.EnforceNullTermination();
+
+            return A;
+        }
+
+        public NativeString Add(char B)
+        {
+            RemoveNullTermination(ref this);
+            if (B!='\0')
+            {
+                int pos = Length;
+                ResizeUninitialized(Length + 2);
+                
+                this[Length - 2] = B;
+                this[Length - 1] = '\0';
+            }
+            else
+            {
+                int pos = Length;
+                ResizeUninitialized(Length + 1);
+
+                this[Length-1] = B;
+            }
+            
+            return this;
         }
 
         public static bool operator ==(NativeString A, NativeString B)
@@ -79,6 +124,16 @@ namespace Unity.Collections
             return Equals(this, obj);
         }
 
+        public override string ToString()
+        {
+            return ToString(this);
+        }
+
+        public string ToString(NativeString nativeString)
+        {
+            return nativeString;
+        }
+
         public override int GetHashCode()
         {
             return GetHashCode(this);
@@ -97,17 +152,41 @@ namespace Unity.Collections
             return (A == B);
         }
 
+        public NativeString Set(string newNativeString)
+        {
+            return Set(this, newNativeString);
+        }
+
+        public static NativeString Set(NativeString A, string newNativeString)
+        {
+            A.ResizeUninitialized(newNativeString.Length);
+            for (int i = 0; i < newNativeString.Length; i++)
+            {
+                A[i] = newNativeString[i];
+            }
+
+            A.EnforceNullTermination();
+
+            return A;
+        }
 
         public static bool IsNullTerminated(NativeString A)
         {
-            return A[A.Length - 1] == '\0' ? true:false;
+            bool result = false;
+
+            if(A.Length>0)
+            {
+                result = A[A.Length - 1] == '\0' ? true : false;
+            }
+
+            return result;
         }
 
         public static bool Replace(ref NativeString A, NativeString oldString, NativeString replacement)
         {
-            EnforceNullTermination(ref A);
-            RemoveNullTermination(ref oldString);
-            RemoveNullTermination(ref replacement);
+            A.EnforceNullTermination();
+            oldString.RemoveNullTermination();
+            replacement.RemoveNullTermination();
 
             int pos = Contains(A, oldString);
 
@@ -121,9 +200,9 @@ namespace Unity.Collections
 
         public static bool ReplaceAll(ref NativeString A, NativeString oldString, NativeString replacement)
         {
-            EnforceNullTermination(ref A);
-            RemoveNullTermination(ref oldString);
-            RemoveNullTermination(ref replacement);
+            A.EnforceNullTermination();
+            oldString.RemoveNullTermination();
+            replacement.RemoveNullTermination();
 
             int pos = Contains(A, oldString);
 
@@ -138,9 +217,9 @@ namespace Unity.Collections
 
         public static bool ReplaceBefore(ref NativeString A, int position, NativeString oldString, NativeString replacement)
         {
-            EnforceNullTermination(ref A);
-            RemoveNullTermination(ref oldString);
-            RemoveNullTermination(ref replacement);
+            A.EnforceNullTermination();
+            oldString.RemoveNullTermination();
+            replacement.RemoveNullTermination();
 
             int pos = ContainsBefore(A, position, oldString);
 
@@ -155,9 +234,9 @@ namespace Unity.Collections
 
         public static bool ReplaceAfter(ref NativeString A, int positon, NativeString oldString, NativeString replacement)
         {
-            EnforceNullTermination(ref A);
-            RemoveNullTermination(ref oldString);
-            RemoveNullTermination(ref replacement);
+            A.EnforceNullTermination();
+            oldString.RemoveNullTermination();
+            replacement.RemoveNullTermination();
 
             int pos = ContainsAfter(A, positon, oldString);
 
@@ -172,9 +251,9 @@ namespace Unity.Collections
 
         public static bool ReplaceAt(ref NativeString A, int positon, NativeString oldString, NativeString replacement, bool checkForOldString = true)
         {
-            EnforceNullTermination(ref A);
-            RemoveNullTermination(ref oldString);
-            RemoveNullTermination(ref replacement);
+            A.EnforceNullTermination();
+            oldString.RemoveNullTermination();
+            replacement.RemoveNullTermination();
 
             int pos;
             if (checkForOldString == true)
@@ -208,8 +287,8 @@ namespace Unity.Collections
 
         public static bool Insert(ref NativeString A, int position, NativeString insertion)
         {
-            EnforceNullTermination(ref A);
-            RemoveNullTermination(ref insertion);
+            A.EnforceNullTermination();
+            insertion.RemoveNullTermination();
             bool success = true;
 
             if (position>=0 && position<A.Length)
@@ -247,10 +326,14 @@ namespace Unity.Collections
             }
         }
 
-        public static explicit operator NativeString(string A)
-        {
-            return new NativeString(A.Length, Allocator.Persistent);
-        }
+        /// <summary>
+        /// Removed temporarily because this is too likely to introduce errors.
+        /// </summary>
+        /// <param name="A"></param>
+        //public static explicit operator NativeString(string A)
+        //{
+        //    return new NativeString(A.Length, Allocator.Persistent);
+        //}
 
         public static implicit operator string(NativeString A)
         {
@@ -264,7 +347,7 @@ namespace Unity.Collections
 
         public static void EnforceNullTermination(ref NativeString A)
         {
-            if (!A[A.Length - 1].Equals('\0'))
+            if (!IsNullTerminated(A))
             {
                 A.Add('\0');
             }
@@ -272,12 +355,26 @@ namespace Unity.Collections
             return;
         }
 
-        public static void RemoveNullTermination(ref NativeString A)
+        public void EnforceNullTermination()
         {
-            if (A[A.Length - 1].Equals('\0'))
+            EnforceNullTermination(ref this);
+
+            return;
+        }
+
+        private static void RemoveNullTermination(ref NativeString A)
+        {
+            if (IsNullTerminated(A))
             {
                 A.ResizeUninitialized(A.Length - 1);
             }
+
+            return;
+        }
+
+        private void RemoveNullTermination()
+        {
+            RemoveNullTermination(ref this);
 
             return;
         }
@@ -432,7 +529,7 @@ namespace Unity.Collections
             }
         }
 
-        public void Add(int element)
+        private void Add(int element)
         {
 #if ENABLE_UNITY_COLLECTIONS_CHECKS
             AtomicSafetyHandle.CheckWriteAndBumpSecondaryVersion(m_Safety);
