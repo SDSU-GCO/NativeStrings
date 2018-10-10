@@ -86,7 +86,7 @@ namespace Unity.Collections
 
         public static int GetHashCode(NativeString A)
         {
-            char[] charArray = A.ToArray();
+            int[] charArray = A.ToArray();
             string stringToHash = charArray.ToString();
             int hash = stringToHash.GetHashCode();
             return hash;
@@ -254,7 +254,12 @@ namespace Unity.Collections
 
         public static implicit operator string(NativeString A)
         {
-            return new string(A.ToArray());
+            System.Text.StringBuilder str = new System.Text.StringBuilder(A.Length);
+            for (int i = 0; i < A.Length; i++)
+            {
+                str.Append((char)A[i]);
+            }
+            return str.ToString();
         }
 
         public static void EnforceNullTermination(ref NativeString A)
@@ -352,7 +357,7 @@ namespace Unity.Collections
 
 
 #if ENABLE_UNITY_COLLECTIONS_CHECKS
-        internal NativeStringImpl<char, DefaultMemoryManager, NativeBufferSentinel> m_Impl;
+        internal NativeStringImpl<int, DefaultMemoryManager, NativeBufferSentinel> m_Impl;
         internal AtomicSafetyHandle m_Safety;
 #else
 	    internal NativeStringImpl<T, DefaultMemoryManager> m_Impl;
@@ -371,13 +376,13 @@ namespace Unity.Collections
             var guardian = new NativeBufferSentinel(stackDepth);
             m_Safety = AtomicSafetyHandle.Create();
 #endif
-            m_Impl = new NativeStringImpl<char, DefaultMemoryManager, NativeBufferSentinel>(capacity, i_label, guardian);
+            m_Impl = new NativeStringImpl<int, DefaultMemoryManager, NativeBufferSentinel>(capacity, i_label, guardian);
 #else
             m_Impl = new NativeStringImpl<T, DefaultMemoryManager>(capacity, i_label);
 #endif
         }
 
-        public char this[int index]
+        public int this[int index]
         {
             get
             {
@@ -427,7 +432,7 @@ namespace Unity.Collections
             }
         }
 
-        public void Add(char element)
+        public void Add(int element)
         {
 #if ENABLE_UNITY_COLLECTIONS_CHECKS
             AtomicSafetyHandle.CheckWriteAndBumpSecondaryVersion(m_Safety);
@@ -435,7 +440,7 @@ namespace Unity.Collections
             m_Impl.Add(element);
         }
 
-        public void AddRange(NativeArray<char> elements)
+        public void AddRange(NativeArray<int> elements)
         {
 #if ENABLE_UNITY_COLLECTIONS_CHECKS
             AtomicSafetyHandle.CheckWriteAndBumpSecondaryVersion(m_Safety);
@@ -479,7 +484,7 @@ namespace Unity.Collections
             m_Impl.Clear();
         }
 
-        public static implicit operator NativeArray<char>(NativeString nativeString)
+        public static implicit operator NativeArray<int>(NativeString nativeString)
         {
 #if ENABLE_UNITY_COLLECTIONS_CHECKS
             AtomicSafetyHandle.CheckGetSecondaryDataPointerAndThrow(nativeString.m_Safety);
@@ -495,7 +500,7 @@ namespace Unity.Collections
             return array;
         }
 
-        public unsafe NativeArray<char> ToDeferredJobArray()
+        public unsafe NativeArray<int> ToDeferredJobArray()
         {
 #if ENABLE_UNITY_COLLECTIONS_CHECKS
             AtomicSafetyHandle.CheckExistsAndThrow(m_Safety);
@@ -505,7 +510,7 @@ namespace Unity.Collections
             // We use the first bit of the pointer to infer that the array is in string mode
             // Thus the job scheduling code will need to patch it.
             buffer += 1;
-            var array = NativeArrayUnsafeUtility.ConvertExistingDataToNativeArray<char>(buffer, 0, Allocator.Invalid);
+            var array = NativeArrayUnsafeUtility.ConvertExistingDataToNativeArray<int>(buffer, 0, Allocator.Invalid);
 
 #if ENABLE_UNITY_COLLECTIONS_CHECKS
             NativeArrayUnsafeUtility.SetAtomicSafetyHandle(ref array, m_Safety);
@@ -515,17 +520,17 @@ namespace Unity.Collections
         }
 
 
-        public char[] ToArray()
+        public int[] ToArray()
         {
-            NativeArray<char> nativeArray = this;
+            NativeArray<int> nativeArray = this;
             return nativeArray.ToArray();
         }
 
-        public void CopyFrom(char[] array)
+        public void CopyFrom(int[] array)
         {
             //@TODO: Thats not right... This doesn't perform a resize
             Capacity = array.Length;
-            NativeArray<char> nativeArray = this;
+            NativeArray<int> nativeArray = this;
             nativeArray.CopyFrom(array);
         }
 
@@ -548,7 +553,7 @@ namespace Unity.Collections
             m_Array = array;
         }
 
-        public char[] Items => m_Array.ToArray();
+        public int[] Items => m_Array.ToArray();
     }
 }
 namespace Unity.Collections.LowLevel.Unsafe

@@ -14,31 +14,16 @@ namespace Unity.Collections
 
         private void Start()
         {
-            NativeList<char> test = new NativeList<char>(0, Allocator.Persistent);
-            Debug.Log("Capacity: " + test.Capacity + "\nLength: " + test.Length);
-            test.Add('a');
-            Debug.Log("Capacity: " + test.Capacity + "\nLength: " + test.Length);
-            test.Add('b');
-            Debug.Log("Capacity: " + test.Capacity + "\nLength: " + test.Length);
-            test.Add('c');
-            Debug.Log("Capacity: " + test.Capacity + "\nLength: " + test.Length);
-            test.Dispose();
+            NativeString t1 = (NativeString)"Hello";
+            t1.Add(' ');
 
-            NativeString t2 = new NativeString(0, Allocator.TempJob);
-            t2.Add('1');
-            Debug.Log("Capacity: " + t2.Capacity + "\nLength: " + t2.Length);
-            t2.Add('1');
-            Debug.Log("Capacity: " + t2.Capacity + "\nLength: " + t2.Length);
-            t2.Add('1');
-            Debug.Log("Capacity: " + t2.Capacity + "\nLength: " + t2.Length);
-            t2.Add('1');
-            Debug.Log("Capacity: " + t2.Capacity + "\nLength: " + t2.Length);
-            t2.Add('1');
-            Debug.Log("Capacity: " + t2.Capacity + "\nLength: " + t2.Length);
-            t2.ResizeUninitialized(1);
-            Debug.Log("Capacity: " + t2.Capacity + "\nLength: " + t2.Length);
-            t2.GetHashCode();
+            NativeString t2 = (NativeString)"World";
+            t1 = t1 + t2;
             t2.Dispose();
+            t1.Add('!');
+
+            Debug.Log(t1);
+            t1.Dispose();
         }
     }
 
