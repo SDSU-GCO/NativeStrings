@@ -364,26 +364,39 @@ namespace Unity.Collections
             if (pos != -1)
             {
                 int newSize = A.Length + replacement.Length - oldString.Length;
-                NativeString temp = new NativeString(A.Length - (pos + oldString.Length), Allocator.Temp);
-                temp.ResizeUninitialized(A.Length - (pos + oldString.Length));
                 int tempPos = pos + oldString.Length;
-                for (int i = 0; i < temp.Length; i++)
+                int offset =  replacement.Length - oldString.Length;
+                if (newSize != A.Length)
                 {
-                    temp[i] = A[tempPos];
-
-                    tempPos++;
+                    if (newSize > A.Length)
+                    {
+                        A.ResizeUninitialized(newSize);
+                        shiftChars(tempPos, A, offset);
+                    }
+                    else
+                    {
+                        shiftChars(tempPos, A, offset);
+                        A.ResizeUninitialized(newSize);
+                    }
                 }
-                
+
                 OverWrite(ref A, pos, replacement);
-                OverWrite(ref A, pos + replacement.Length, temp);
-                A.ResizeUninitialized(newSize);
-                EnforceNullTermination(ref A);
-                temp.Dispose();
             }
 
             return pos != -1;
         }
         
+        private static void shiftChars(int tempPos, NativeString A, int offset)
+        {
+
+            for (int i = tempPos; i < A.Length; i++)
+            {
+                A[i + offset] = A[i];
+
+                tempPos++;
+            }
+        }
+
         public NativeString Insert(int position, NativeString insertion)
         {
             Insert(ref this, position, insertion);
