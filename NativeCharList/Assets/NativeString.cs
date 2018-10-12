@@ -388,12 +388,23 @@ namespace Unity.Collections
         
         private static void shiftChars(int tempPos, NativeString A, int offset)
         {
-
-            for (int i = tempPos; i < A.Length; i++)
+            if(offset<0)
             {
-                A[i + offset] = A[i];
+                for (int i = tempPos; i < A.Length; i++)
+                {
+                    A[i + offset] = A[i];
 
-                tempPos++;
+                    tempPos++;
+                }
+            }
+            else if (offset > 0)
+            {
+                for (int i = A.Length-offset-1; i >= tempPos; i--)
+                {
+                    A[i + offset] = A[i];
+
+                    tempPos++;
+                }
             }
         }
 
@@ -411,13 +422,20 @@ namespace Unity.Collections
 
             if (position>=0 && position<A.Length)
             {
-                
-                NativeString temp = new NativeString(A.Length - position, Allocator.Temp);
-                temp.ResizeUninitialized(A.Length - position);
-                for (int i = 0; i < temp.Length; i++)
+
+                int newSize = A.Length + insertion.Length;
+                int tempPos = position;
+                int offset = insertion.Length;
+                if (newSize != A.Length)
                 {
-                    temp[i] = A[position+i];
+                    if (newSize > A.Length)
+                    {
+                        A.ResizeUninitialized(newSize);
+                        shiftChars(tempPos, A, offset);
+                    }
                 }
+
+                OverWrite(ref A, pos, replacement);
 
                 OverWrite(ref A, position, insertion);
                 OverWrite(ref A, position + insertion.Length, temp);
