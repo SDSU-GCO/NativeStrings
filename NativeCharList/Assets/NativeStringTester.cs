@@ -14,16 +14,32 @@ namespace Unity.Collections
 
         private void Start()
         {
-            NativeString t1 = (NativeString)"Hello";
-            t1.Add(' ');
+            NativeString t1 = new NativeString("Hello", Allocator.Persistent);
+            t1.Append(' ');
 
-            NativeString t2 = (NativeString)"World";
-            t1 = t1 + t2;
+            NativeString t2 = new NativeString(Allocator.Persistent);
+            t2.Append("World");
+            //t1 = t1 + t2;
+            t1.Append(t2);
             t2.Dispose();
-            t1.Add('!');
+            t1.Append('!');
 
             Debug.Log(t1);
             t1.Dispose();
+
+
+            NativeString t3 = new NativeString(Allocator.Persistent);
+            t3.Append("The number of girlfriends I have had in my entire life is ");
+            t3.Append(0);
+            t3.Append(new BlittableChar('\n'));
+            t3.Append("The chance of that changing in the near is ");
+            t3.Append(0.0f);
+            t3.Append("%.\n");
+            t3.Append("You can make the above sentence ");
+            t3.Append(false);
+            t3.Append("!\n");
+            Debug.Log(t3);
+            t3.Dispose();
         }
     }
 

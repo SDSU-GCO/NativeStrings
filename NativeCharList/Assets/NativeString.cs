@@ -6,6 +6,27 @@ using Unity.Collections;
 
 namespace Unity.Collections
 {
+    public struct BlittableChar
+    {
+        public int C;
+
+        public BlittableChar(char c)
+        {
+            C = c;
+        }
+
+        public static implicit operator char(BlittableChar c)
+        {
+            return (char)c.C;
+        }
+
+        public static implicit operator BlittableChar(char c)
+        {
+            return new BlittableChar(c);
+        }
+    }
+
+
     [StructLayout(LayoutKind.Sequential)]
     [NativeContainer]
     [DebuggerDisplay("Length = {Length}")]
@@ -15,14 +36,36 @@ namespace Unity.Collections
 
         #region custom extensions
         /// <summary>
-        /// This function takes a copy of native list A and appends/concatanates B to the end of it.
+        /// Assign to this to perform a deep copy of the string. Especially useful once + overload works.
+        /// </summary>
+        public NativeString Overwrite
+        {
+            set
+            {
+                Clear();
+                Append(value);
+            }
+        }
+
+        /// <summary>
+        /// This function takes a copy of native list A and appends B to the end of it.
         /// </summary>
         /// <param name="A"></param>
         /// <param name="B"></param>
         /// <returns></returns>
-        public NativeString Concatenate(NativeString A, NativeString B)
+        public unsafe void Append(NativeString A)
         {
-            return A + B;
+            int start = Length;
+            ResizeUninitialized(Length + A.Length);
+            if (NativeStringUnsafeUtility.GetInternalStringDataPtrUnchecked(ref this) == NativeStringUnsafeUtility.GetInternalStringDataPtrUnchecked(ref A))
+            {
+                //It's the same stupid string. We are just repeating it.
+                UnsafeUtility.MemMove(GetUnsafeOffset(start), UnsafePtr, Length * sizeof(BlittableChar));
+            }
+            else
+            {
+                UnsafeUtility.MemCpy(GetUnsafeOffset(start), A.UnsafePtrReadOnly, A.Length * sizeof(BlittableChar));
+            }
         }
 
         /// <summary>
@@ -31,42 +74,20 @@ namespace Unity.Collections
         /// <param name="A"></param>
         /// <param name="B"></param>
         /// <returns></returns>
-        public static NativeString operator +(NativeString A, NativeString B)
+        /*public static NativeString operator +(NativeString A, NativeString B)
         {
-            RemoveNullTermination(ref A);
-            EnforceNullTermination(ref B);
+            //Overloading this operator isn't feasible until Unity makes Allocator.Temp auto-dispose.
+            var temp = new NativeString(A.Length + B.Length, Allocator.Temp);
+            temp.Append(A);
+            temp.Append(B);
+            return temp;
+        }*/
 
-            int pos = A.Length;
-            A.ResizeUninitialized(A.Length + B.Length);
-
-            for (int i = 0; i < B.Length; i++)
-            {
-                A[pos + i] = B[i];
-            }
-
-            return A;
-        }
-
-        public static bool operator ==(NativeString A, NativeString B)
+        public unsafe static bool operator ==(NativeString A, NativeString B)
         {
-            bool equal = true;
-
-            if (A.Length == B.Length)
-            {
-                for (int i = 0; i < B.Length && equal == true; i++)
-                {
-                    if (A[i] != B[i])
-                    {
-                        equal = false;
-                    }
-                }
-            }
-            else
-            {
-                equal = false;
-            }
-
-            return equal;
+            if (A.Length != B.Length)
+                return false;
+            return UnsafeUtility.MemCmp(A.UnsafePtrReadOnly, B.UnsafePtrReadOnly, A.Length) == 0;
         }
 
         public static bool operator !=(NativeString A, NativeString B)
@@ -74,290 +95,92 @@ namespace Unity.Collections
             return !(A == B);
         }
 
-        public override bool Equals(object obj)
+        public override string ToString()
         {
-            return Equals(this, obj);
-        }
-
-        public override int GetHashCode()
-        {
-            return GetHashCode(this);
-        }
-
-        public static int GetHashCode(NativeString A)
-        {
-            int[] charArray = A.ToArray();
-            string stringToHash = charArray.ToString();
-            int hash = stringToHash.GetHashCode();
-            return hash;
-        }
-
-        public static bool Equals(NativeString A, NativeString B)
-        {
-            return (A == B);
-        }
-
-
-        public static bool IsNullTerminated(NativeString A)
-        {
-            return A[A.Length - 1] == '\0' ? true:false;
-        }
-
-        public static bool Replace(ref NativeString A, NativeString oldString, NativeString replacement)
-        {
-            EnforceNullTermination(ref A);
-            RemoveNullTermination(ref oldString);
-            RemoveNullTermination(ref replacement);
-
-            int pos = Contains(A, oldString);
-
-            if (pos != -1)
+            System.Text.StringBuilder str = new System.Text.StringBuilder(Length);
+            for (int i = 0; i < Length; i++)
             {
-                ReplaceAt(ref A, pos, oldString, replacement, false);
-            }
-
-            return pos != -1;
-        }
-
-        public static bool ReplaceAll(ref NativeString A, NativeString oldString, NativeString replacement)
-        {
-            EnforceNullTermination(ref A);
-            RemoveNullTermination(ref oldString);
-            RemoveNullTermination(ref replacement);
-
-            int pos = Contains(A, oldString);
-
-            if (pos != -1)
-            {
-                ReplaceAt(ref A, pos, oldString, replacement, false);
-                ReplaceAfter(ref A, pos, oldString, replacement);
-            }
-
-            return pos != -1;
-        }
-
-        public static bool ReplaceBefore(ref NativeString A, int position, NativeString oldString, NativeString replacement)
-        {
-            EnforceNullTermination(ref A);
-            RemoveNullTermination(ref oldString);
-            RemoveNullTermination(ref replacement);
-
-            int pos = ContainsBefore(A, position, oldString);
-
-            if (pos != -1)
-            {
-                ReplaceAt(ref A, pos, oldString, replacement, false);
-                ReplaceBefore(ref A, pos, oldString, replacement);
-            }
-
-            return pos != -1;
-        }
-
-        public static bool ReplaceAfter(ref NativeString A, int positon, NativeString oldString, NativeString replacement)
-        {
-            EnforceNullTermination(ref A);
-            RemoveNullTermination(ref oldString);
-            RemoveNullTermination(ref replacement);
-
-            int pos = ContainsAfter(A, positon, oldString);
-
-            if (pos != -1)
-            {
-                ReplaceAt(ref A, pos, oldString, replacement, false);
-                ReplaceAfter(ref A, pos, oldString, replacement);
-            }
-
-            return pos != -1;
-        }
-
-        public static bool ReplaceAt(ref NativeString A, int positon, NativeString oldString, NativeString replacement, bool checkForOldString = true)
-        {
-            EnforceNullTermination(ref A);
-            RemoveNullTermination(ref oldString);
-            RemoveNullTermination(ref replacement);
-
-            int pos;
-            if (checkForOldString == true)
-            {
-                pos = ContainsAt(A, positon, oldString);
-            }
-            else
-            {
-                pos = positon;
-            }
-
-            if (pos != -1)
-            {
-                NativeString temp = new NativeString(A.Length - (pos + oldString.Length), Allocator.Temp);
-                temp.ResizeUninitialized(A.Length - (pos + oldString.Length));
-                int tempPos = pos + oldString.Length;
-                for (int i = 0; i < temp.Length; i++)
-                {
-                    temp[i] = A[tempPos];
-
-                    tempPos++;
-                }
-                
-                OverWrite(ref A, pos, replacement);
-                OverWrite(ref A, pos + replacement.Length, temp);
-                EnforceNullTermination(ref A);
-            }
-
-            return pos != -1;
-        }
-
-        public static bool Insert(ref NativeString A, int position, NativeString insertion)
-        {
-            EnforceNullTermination(ref A);
-            RemoveNullTermination(ref insertion);
-            bool success = true;
-
-            if (position>=0 && position<A.Length)
-            {
-                
-                NativeString temp = new NativeString(A.Length - position, Allocator.Temp);
-                temp.ResizeUninitialized(A.Length - position);
-                for (int i = 0; i < temp.Length; i++)
-                {
-                    temp[i] = A[position+i];
-                }
-
-                OverWrite(ref A, position, insertion);
-                OverWrite(ref A, position + insertion.Length, temp);
-                EnforceNullTermination(ref A);
-            }
-            else
-            {
-                success = false;
-            }
-
-            return success;
-        }
-
-        public static void OverWrite(ref NativeString A, int position, NativeString stamp)
-        {
-            if((position+stamp.Length)>A.Length)
-            {
-                A.ResizeUninitialized(position + stamp.Length);
-            }
-
-            for(int i = 0; i < stamp.Length; i++)
-            {
-                A[position + i] = stamp[i];
-            }
-        }
-
-        public static explicit operator NativeString(string A)
-        {
-            return new NativeString(A.Length, Allocator.Persistent);
-        }
-
-        public static implicit operator string(NativeString A)
-        {
-            System.Text.StringBuilder str = new System.Text.StringBuilder(A.Length);
-            for (int i = 0; i < A.Length; i++)
-            {
-                str.Append((char)A[i]);
+                str.Append((char)this[i]);
             }
             return str.ToString();
         }
 
-        public static void EnforceNullTermination(ref NativeString A)
+        /// <summary>
+        /// A writeable unsafe pointer for UnsafeUtility operations.
+        /// </summary>
+        private unsafe void* UnsafePtr
         {
-            if (!A[A.Length - 1].Equals('\0'))
+            get
             {
-                A.Add('\0');
+                return NativeStringUnsafeUtility.GetUnsafePtr(this);
             }
-
-            return;
         }
 
-        public static void RemoveNullTermination(ref NativeString A)
+        /// <summary>
+        /// A readable unsafe pointer for UnsafeUtility operations. Useful for copy source and comparisons.
+        /// </summary>
+        private unsafe void* UnsafePtrReadOnly
         {
-            if (A[A.Length - 1].Equals('\0'))
+            get
             {
-                A.ResizeUninitialized(A.Length - 1);
+                return NativeStringUnsafeUtility.GetUnsafePtrReadOnly(this);
             }
-
-            return;
         }
 
-        public static int Contains(NativeString A, NativeString subString)
+        /// <summary>
+        /// Returns the writable pointer to the character at index. Use for writing at a given location.
+        /// </summary>
+        /// <param name="index">The index of the character to point to</param>
+        /// <returns>A writable pointer to the character located at index</returns>
+        private unsafe void* GetUnsafeOffset(int index)
         {
-            int pos = -1;
-            for (int i = 0; i < A.Length && pos == -1; i++)
-            {
-                pos = ContainsAt(A, i, subString);
-            }
-
-            return pos;
+            return (byte*)UnsafePtr + index * sizeof(BlittableChar);
         }
 
-        public static int ContainsAt(NativeString A, int position, NativeString subString)
+        /// <summary>
+        /// Returns a readonly pointer to the character at index. Use as a copy source or substring comparison.
+        /// </summary>
+        /// <param name="offset">The index of the character to point to</param>
+        /// <returns>A readonly pointer to the character located at index</returns>
+        private unsafe void* GetUnsafeOffsetReadOnly(int offset)
         {
-            int pos = -1;
-            if (!((subString.Length + position) > A.Length))
-            {
-                for (int j = 0; j < subString.Length && A[position + j].Equals(subString[j]); j++)
-                {
-                    if (j == (subString.Length - 1))
-                    {
-                        pos = position;
-                    }
-                }
-            }
-
-            return pos;
+            return (byte*)UnsafePtrReadOnly + offset * sizeof(BlittableChar);
         }
 
-        public static int ContainsAfter(NativeString A, int position, NativeString subString)
+        /// <summary>
+        /// "Resizes" the middle of the string. Automatically moves the contents after the specified range appropriately. Useful for Replace algorithms. Added characters are unitialized. If the range is shrunk, the contents of the range may be overwritten.
+        /// </summary>
+        /// <param name="start">The character to start resizing at.</param>
+        /// <param name="count">The number of characters in the range to be resized. Includes start.</param>
+        /// <param name="newSize">The number of characters the range should be after the resize. Includes start.</param>
+        private unsafe void ResizeRange(int start, int count, int newSize)
         {
-            int pos = -1;
-            for (int i = position + 1; i < A.Length && pos == -1; i++)
-            {
-                pos = ContainsAt(A, i, subString);
-            }
+            int len = Length;
+            if (newSize > count)
+                ResizeUninitialized(len + newSize - count);
 
-            return pos;
+            UnsafeUtility.MemMove(GetUnsafeOffset(start + newSize), GetUnsafeOffset(start + count), (len - (start + count)) * sizeof(BlittableChar));
+
+            if (newSize < count)
+                ResizeUninitialized(len + newSize - count);
         }
 
-        public static int ContainsAtOrAfter(NativeString A, int position, NativeString subString)
+        /// <summary>
+        /// Inserts an uninitialized gap in the string. Useful for Insert algorithms. Automatically moves the contents at position to the end of the string appropriately.
+        /// </summary>
+        /// <param name="pos">The index in which you want to insert before.</param>
+        /// <param name="count">The number of characters you want to insert before.</param>
+        private unsafe void InsertUnitialized(int pos, int count)
         {
-            int pos = -1;
-            for (int i = position; i < A.Length && pos == -1; i++)
-            {
-                pos = ContainsAt(A, i, subString);
-            }
-
-            return pos;
-        }
-
-        public static int ContainsBefore(NativeString A, int position, NativeString subString)
-        {
-            int pos = -1;
-            for (int i = 0; i < A.Length && i < position && pos == -1; i++)
-            {
-                pos = ContainsAt(A, i, subString);
-            }
-
-            return pos;
-        }
-
-        public static int ContainsAtORBefore(NativeString A, int position, NativeString subString)
-        {
-            int pos = -1;
-            for (int i = 0; i < A.Length && i <= position && pos == -1; i++)
-            {
-                pos = ContainsAt(A, i, subString);
-            }
-
-            return pos;
+            int len = Length;
+            ResizeUninitialized(len + count);
+            UnsafeUtility.MemMove(GetUnsafeOffset(pos + count), GetUnsafeOffset(pos), (len - pos) * sizeof(BlittableChar));
         }
         #endregion
 
 
 #if ENABLE_UNITY_COLLECTIONS_CHECKS
-        internal NativeStringImpl<int, DefaultMemoryManager, NativeBufferSentinel> m_Impl;
+        internal NativeStringImpl<BlittableChar, DefaultMemoryManager, NativeBufferSentinel> m_Impl;
         internal AtomicSafetyHandle m_Safety;
 #else
 	    internal NativeStringImpl<T, DefaultMemoryManager> m_Impl;
@@ -376,13 +199,13 @@ namespace Unity.Collections
             var guardian = new NativeBufferSentinel(stackDepth);
             m_Safety = AtomicSafetyHandle.Create();
 #endif
-            m_Impl = new NativeStringImpl<int, DefaultMemoryManager, NativeBufferSentinel>(capacity, i_label, guardian);
+            m_Impl = new NativeStringImpl<BlittableChar, DefaultMemoryManager, NativeBufferSentinel>(capacity, i_label, guardian);
 #else
             m_Impl = new NativeStringImpl<T, DefaultMemoryManager>(capacity, i_label);
 #endif
         }
 
-        public int this[int index]
+        public BlittableChar this[int index]
         {
             get
             {
@@ -432,7 +255,7 @@ namespace Unity.Collections
             }
         }
 
-        public void Add(int element)
+        public void Append(BlittableChar element)
         {
 #if ENABLE_UNITY_COLLECTIONS_CHECKS
             AtomicSafetyHandle.CheckWriteAndBumpSecondaryVersion(m_Safety);
@@ -440,7 +263,7 @@ namespace Unity.Collections
             m_Impl.Add(element);
         }
 
-        public void AddRange(NativeArray<int> elements)
+        public void AddRange(NativeArray<BlittableChar> elements)
         {
 #if ENABLE_UNITY_COLLECTIONS_CHECKS
             AtomicSafetyHandle.CheckWriteAndBumpSecondaryVersion(m_Safety);
@@ -484,7 +307,7 @@ namespace Unity.Collections
             m_Impl.Clear();
         }
 
-        public static implicit operator NativeArray<int>(NativeString nativeString)
+        public static implicit operator NativeArray<BlittableChar>(NativeString nativeString)
         {
 #if ENABLE_UNITY_COLLECTIONS_CHECKS
             AtomicSafetyHandle.CheckGetSecondaryDataPointerAndThrow(nativeString.m_Safety);
@@ -500,7 +323,7 @@ namespace Unity.Collections
             return array;
         }
 
-        public unsafe NativeArray<int> ToDeferredJobArray()
+        public unsafe NativeArray<BlittableChar> ToDeferredJobArray()
         {
 #if ENABLE_UNITY_COLLECTIONS_CHECKS
             AtomicSafetyHandle.CheckExistsAndThrow(m_Safety);
@@ -510,7 +333,7 @@ namespace Unity.Collections
             // We use the first bit of the pointer to infer that the array is in string mode
             // Thus the job scheduling code will need to patch it.
             buffer += 1;
-            var array = NativeArrayUnsafeUtility.ConvertExistingDataToNativeArray<int>(buffer, 0, Allocator.Invalid);
+            var array = NativeArrayUnsafeUtility.ConvertExistingDataToNativeArray<BlittableChar>(buffer, 0, Allocator.Invalid);
 
 #if ENABLE_UNITY_COLLECTIONS_CHECKS
             NativeArrayUnsafeUtility.SetAtomicSafetyHandle(ref array, m_Safety);
@@ -520,17 +343,17 @@ namespace Unity.Collections
         }
 
 
-        public int[] ToArray()
+        public BlittableChar[] ToArray()
         {
-            NativeArray<int> nativeArray = this;
+            NativeArray<BlittableChar> nativeArray = this;
             return nativeArray.ToArray();
         }
 
-        public void CopyFrom(int[] array)
+        public void CopyFrom(BlittableChar[] array)
         {
             //@TODO: Thats not right... This doesn't perform a resize
             Capacity = array.Length;
-            NativeArray<int> nativeArray = this;
+            NativeArray<BlittableChar> nativeArray = this;
             nativeArray.CopyFrom(array);
         }
 
@@ -553,7 +376,7 @@ namespace Unity.Collections
             m_Array = array;
         }
 
-        public int[] Items => m_Array.ToArray();
+        public BlittableChar[] Items => m_Array.ToArray();
     }
 }
 namespace Unity.Collections.LowLevel.Unsafe
@@ -579,6 +402,16 @@ namespace Unity.Collections.LowLevel.Unsafe
         public static unsafe void* GetInternalStringDataPtrUnchecked(ref NativeString nativeString)
         {
             return nativeString.m_Impl.GetStringData();
+        }
+
+
+        internal static unsafe void* GetUnsafePtrReadOnly(this NativeString nativeString)
+        {
+#if ENABLE_UNITY_COLLECTIONS_CHECKS
+            AtomicSafetyHandle.CheckReadAndThrow(nativeString.m_Safety);
+#endif
+            var data = nativeString.m_Impl.GetStringData();
+            return data->buffer;
         }
     }
 }
