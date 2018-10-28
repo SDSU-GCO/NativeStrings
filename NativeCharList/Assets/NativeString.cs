@@ -13,6 +13,8 @@ namespace Unity.Collections
     public struct NativeString : IDisposable
     {
 
+
+
         #region custom extensions
         /// <summary>
         /// This function takes a copy of native list A and appends/concatanates B to the end of it.
@@ -31,10 +33,32 @@ namespace Unity.Collections
         /// <param name="A"></param>
         /// <param name="B"></param>
         /// <returns></returns>
+        public NativeString Concatenate(NativeString B)
+        {
+            return this + B;
+        }
+
+        /// <summary>
+        /// This function takes a copy of native list A and appends/concatanates B to the end of it.
+        /// </summary>
+        /// <param name="A"></param>
+        /// <param name="B"></param>
+        /// <returns></returns>
+        public NativeString Concatenate(string B)
+        {
+            return this + B;
+        }
+
+        /// <summary>
+        /// This function takes a copy of native list A and appends/concatanates B to the end of it.
+        /// </summary>
+        /// <param name="A"></param>
+        /// <param name="B"></param>
+        /// <returns></returns>
         public static NativeString operator +(NativeString A, NativeString B)
         {
-            RemoveNullTermination(ref A);
-            EnforceNullTermination(ref B);
+            A.RemoveNullTermination();
+            B.EnforceNullTermination();
 
             int pos = A.Length;
             A.ResizeUninitialized(A.Length + B.Length);
@@ -45,6 +69,50 @@ namespace Unity.Collections
             }
 
             return A;
+        }
+
+        /// <summary>
+        /// This function takes a copy of native list A and appends/concatanates B to the end of it.
+        /// </summary>
+        /// <param name="A"></param>
+        /// <param name="B"></param>
+        /// <returns></returns>
+        public static NativeString operator +(NativeString A, string B)
+        {
+            RemoveNullTermination(ref A);
+            int pos = A.Length;
+            A.ResizeUninitialized(A.Length + B.Length);
+            
+            for (int i = 0; i < B.Length; i++)
+            {
+                A[pos + i] = B[i];
+            }
+
+            A.EnforceNullTermination();
+            
+            return A;
+        }
+
+        public NativeString Add(char B)
+        {
+            RemoveNullTermination(ref this);
+            if (B!='\0')
+            {
+                int pos = Length;
+                ResizeUninitialized(Length + 2);
+                
+                this[Length - 2] = B;
+                this[Length - 1] = '\0';
+            }
+            else
+            {
+                int pos = Length;
+                ResizeUninitialized(Length + 1);
+
+                this[Length-1] = B;
+            }
+            
+            return this;
         }
 
         public static bool operator ==(NativeString A, NativeString B)
@@ -79,6 +147,16 @@ namespace Unity.Collections
             return Equals(this, obj);
         }
 
+        public override string ToString()
+        {
+            return ToString(this);
+        }
+
+        public string ToString(NativeString nativeString)
+        {
+            return nativeString;
+        }
+
         public override int GetHashCode()
         {
             return GetHashCode(this);
@@ -97,17 +175,52 @@ namespace Unity.Collections
             return (A == B);
         }
 
+        public NativeString Set(string newNativeString)
+        {
+            return Set(this, newNativeString);
+        }
+
+        public static NativeString Set(NativeString A, string newNativeString)
+        {
+            A.ResizeUninitialized(newNativeString.Length);
+            for (int i = 0; i < newNativeString.Length; i++)
+            {
+                A[i] = newNativeString[i];
+            }
+
+            A.EnforceNullTermination();
+
+            return A;
+        }
 
         public static bool IsNullTerminated(NativeString A)
         {
-            return A[A.Length - 1] == '\0' ? true:false;
+            bool result = false;
+
+            if (A.Length > 0)
+            {
+                result = A[A.Length - 1] == '\0' ? true : false;
+            }
+
+            return result;
+        }
+
+        public bool IsNullTerminated()
+        {
+            return IsNullTerminated(this);
+        }
+
+        public NativeString Replace(NativeString oldString, NativeString replacement)
+        {
+            Replace(ref this, oldString, replacement);
+            return this;
         }
 
         public static bool Replace(ref NativeString A, NativeString oldString, NativeString replacement)
         {
-            EnforceNullTermination(ref A);
-            RemoveNullTermination(ref oldString);
-            RemoveNullTermination(ref replacement);
+            A.EnforceNullTermination();
+            oldString.RemoveNullTermination();
+            replacement.RemoveNullTermination();
 
             int pos = Contains(A, oldString);
 
@@ -119,28 +232,77 @@ namespace Unity.Collections
             return pos != -1;
         }
 
-        public static bool ReplaceAll(ref NativeString A, NativeString oldString, NativeString replacement)
+
+        public NativeString ReplaceAll(ref NativeString oldNativeString, ref NativeString replacementNative)
         {
-            EnforceNullTermination(ref A);
-            RemoveNullTermination(ref oldString);
-            RemoveNullTermination(ref replacement);
+            ReplaceAll(ref this, ref oldNativeString, ref replacementNative);
+            return this;
+        }
 
-            int pos = Contains(A, oldString);
+        public NativeString ReplaceAll(string oldString, string replacement)
+        {
+            NativeString oldNativeString = new NativeString(0, Allocator.Temp).Set(oldString);
+            NativeString replacementNative = new NativeString(0, Allocator.Temp).Set(replacement);
 
-            if (pos != -1)
+            ReplaceAll(ref this, ref oldNativeString, ref replacementNative);
+
+            oldNativeString.Dispose();
+            replacementNative.Dispose();
+
+            return this;
+        }
+
+        public NativeString ReplaceAll(string oldString, ref NativeString replacementNative)
+        {
+            NativeString oldNativeString = new NativeString(0, Allocator.Temp).Set(oldString);
+
+            ReplaceAll(ref this, ref oldNativeString, ref replacementNative);
+
+            oldNativeString.Dispose();
+
+            return this;
+        }
+
+        public NativeString ReplaceAll(ref NativeString oldNativeString, string replacement)
+        {
+            NativeString replacementNative = new NativeString(0, Allocator.Temp).Set(replacement);
+
+            ReplaceAll(ref this, ref oldNativeString, ref replacementNative);
+            
+            replacementNative.Dispose();
+
+            return this;
+        }
+
+        public static bool ReplaceAll(ref NativeString A, ref NativeString oldString, ref NativeString replacement)
+        {
+            A.EnforceNullTermination();
+            oldString.RemoveNullTermination();
+            replacement.RemoveNullTermination();
+            bool success = false;
+            for(int i = A.Length-1; i>=0; i--)
             {
-                ReplaceAt(ref A, pos, oldString, replacement, false);
-                ReplaceAfter(ref A, pos, oldString, replacement);
+                if(ReplaceAt(ref A, i, oldString, replacement))
+                {
+                    success = true;
+                }
             }
 
-            return pos != -1;
+            return success;
+        }
+
+
+        public NativeString ReplaceBefore(int position, NativeString oldString, NativeString replacement)
+        {
+            ReplaceBefore(ref this, position, oldString, replacement);
+            return this;
         }
 
         public static bool ReplaceBefore(ref NativeString A, int position, NativeString oldString, NativeString replacement)
         {
-            EnforceNullTermination(ref A);
-            RemoveNullTermination(ref oldString);
-            RemoveNullTermination(ref replacement);
+            A.EnforceNullTermination();
+            oldString.RemoveNullTermination();
+            replacement.RemoveNullTermination();
 
             int pos = ContainsBefore(A, position, oldString);
 
@@ -153,11 +315,18 @@ namespace Unity.Collections
             return pos != -1;
         }
 
+
+        public NativeString ReplaceAfter(int position, NativeString oldString, NativeString replacement)
+        {
+            ReplaceAfter(ref this, position, oldString, replacement);
+            return this;
+        }
+
         public static bool ReplaceAfter(ref NativeString A, int positon, NativeString oldString, NativeString replacement)
         {
-            EnforceNullTermination(ref A);
-            RemoveNullTermination(ref oldString);
-            RemoveNullTermination(ref replacement);
+            A.EnforceNullTermination();
+            oldString.RemoveNullTermination();
+            replacement.RemoveNullTermination();
 
             int pos = ContainsAfter(A, positon, oldString);
 
@@ -170,11 +339,17 @@ namespace Unity.Collections
             return pos != -1;
         }
 
+        public NativeString ReplaceAt(int position, NativeString oldString, NativeString replacement)
+        {
+            ReplaceAt(ref this, position, oldString, replacement);
+            return this;
+        }
+
         public static bool ReplaceAt(ref NativeString A, int positon, NativeString oldString, NativeString replacement, bool checkForOldString = true)
         {
-            EnforceNullTermination(ref A);
-            RemoveNullTermination(ref oldString);
-            RemoveNullTermination(ref replacement);
+            A.EnforceNullTermination();
+            oldString.RemoveNullTermination();
+            replacement.RemoveNullTermination();
 
             int pos;
             if (checkForOldString == true)
@@ -188,39 +363,79 @@ namespace Unity.Collections
 
             if (pos != -1)
             {
-                NativeString temp = new NativeString(A.Length - (pos + oldString.Length), Allocator.Temp);
-                temp.ResizeUninitialized(A.Length - (pos + oldString.Length));
+                int newSize = A.Length + replacement.Length - oldString.Length;
                 int tempPos = pos + oldString.Length;
-                for (int i = 0; i < temp.Length; i++)
+                int offset =  replacement.Length - oldString.Length;
+                if (newSize != A.Length)
                 {
-                    temp[i] = A[tempPos];
-
-                    tempPos++;
+                    if (newSize > A.Length)
+                    {
+                        A.ResizeUninitialized(newSize);
+                        shiftChars(tempPos, A, offset);
+                    }
+                    else
+                    {
+                        shiftChars(tempPos, A, offset);
+                        A.ResizeUninitialized(newSize);
+                    }
                 }
-                
+
                 OverWrite(ref A, pos, replacement);
-                OverWrite(ref A, pos + replacement.Length, temp);
-                EnforceNullTermination(ref A);
             }
 
             return pos != -1;
         }
+        
+        private static void shiftChars(int tempPos, NativeString A, int offset)
+        {
+            if(offset<0)
+            {
+                for (int i = tempPos; i < A.Length; i++)
+                {
+                    A[i + offset] = A[i];
+
+                    tempPos++;
+                }
+            }
+            else if (offset > 0)
+            {
+                for (int i = A.Length-offset-1; i >= tempPos; i--)
+                {
+                    A[i + offset] = A[i];
+
+                    tempPos++;
+                }
+            }
+        }
+
+        public NativeString Insert(int position, NativeString insertion)
+        {
+            Insert(ref this, position, insertion);
+            return this;
+        }
 
         public static bool Insert(ref NativeString A, int position, NativeString insertion)
         {
-            EnforceNullTermination(ref A);
-            RemoveNullTermination(ref insertion);
+            A.EnforceNullTermination();
+            insertion.RemoveNullTermination();
             bool success = true;
 
             if (position>=0 && position<A.Length)
             {
-                
-                NativeString temp = new NativeString(A.Length - position, Allocator.Temp);
-                temp.ResizeUninitialized(A.Length - position);
-                for (int i = 0; i < temp.Length; i++)
+
+                int newSize = A.Length + insertion.Length;
+                int tempPos = position;
+                int offset = insertion.Length;
+                if (newSize != A.Length)
                 {
-                    temp[i] = A[position+i];
+                    if (newSize > A.Length)
+                    {
+                        A.ResizeUninitialized(newSize);
+                        shiftChars(tempPos, A, offset);
+                    }
                 }
+
+                OverWrite(ref A, pos, replacement);
 
                 OverWrite(ref A, position, insertion);
                 OverWrite(ref A, position + insertion.Length, temp);
@@ -232,6 +447,12 @@ namespace Unity.Collections
             }
 
             return success;
+        }
+
+
+        public void OverWrite(int position, NativeString stamp)
+        {
+            OverWrite(ref this, position, stamp);
         }
 
         public static void OverWrite(ref NativeString A, int position, NativeString stamp)
@@ -247,10 +468,14 @@ namespace Unity.Collections
             }
         }
 
-        public static explicit operator NativeString(string A)
-        {
-            return new NativeString(A.Length, Allocator.Persistent);
-        }
+        /// <summary>
+        /// Removed temporarily because this is too likely to introduce errors.
+        /// </summary>
+        /// <param name="A"></param>
+        //public static explicit operator NativeString(string A)
+        //{
+        //    return new NativeString(A.Length, Allocator.Persistent);
+        //}
 
         public static implicit operator string(NativeString A)
         {
@@ -264,7 +489,7 @@ namespace Unity.Collections
 
         public static void EnforceNullTermination(ref NativeString A)
         {
-            if (!A[A.Length - 1].Equals('\0'))
+            if (!IsNullTerminated(A))
             {
                 A.Add('\0');
             }
@@ -272,12 +497,26 @@ namespace Unity.Collections
             return;
         }
 
-        public static void RemoveNullTermination(ref NativeString A)
+        public void EnforceNullTermination()
         {
-            if (A[A.Length - 1].Equals('\0'))
+            EnforceNullTermination(ref this);
+
+            return;
+        }
+
+        private static void RemoveNullTermination(ref NativeString A)
+        {
+            if (IsNullTerminated(A))
             {
                 A.ResizeUninitialized(A.Length - 1);
             }
+
+            return;
+        }
+
+        private void RemoveNullTermination()
+        {
+            RemoveNullTermination(ref this);
 
             return;
         }
@@ -432,7 +671,7 @@ namespace Unity.Collections
             }
         }
 
-        public void Add(int element)
+        private void Add(int element)
         {
 #if ENABLE_UNITY_COLLECTIONS_CHECKS
             AtomicSafetyHandle.CheckWriteAndBumpSecondaryVersion(m_Safety);

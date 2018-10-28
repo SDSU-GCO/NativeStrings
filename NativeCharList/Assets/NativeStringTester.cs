@@ -14,15 +14,25 @@ namespace Unity.Collections
 
         private void Start()
         {
-            NativeString t1 = (NativeString)"Hello";
-            t1.Add(' ');
+            NativeString t1 = new NativeString(0, Allocator.Persistent);
+            t1.Set("Potato");
 
-            NativeString t2 = (NativeString)"World";
+            NativeString t2 = new NativeString(0, Allocator.Persistent);
+            t2.Set(" World Potato");
             t1 = t1 + t2;
-            t2.Dispose();
-            t1.Add('!');
+            t1 = t1 + t2;
+            t1 = t1 + t2;
+            t1 = t1 + t2;
+            t1 = t1 + t2;
+            t1 = t1 + t2;
+            
+            t1.ReplaceAll("Potato", "Hello");
+            t1 += " World!";
 
-            Debug.Log(t1);
+            
+            t2.Dispose();
+
+            Debug.Log(t1.ToString());
             t1.Dispose();
         }
     }
